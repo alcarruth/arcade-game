@@ -1,3 +1,20 @@
+/*
+ * style.css
+ * 
+ *  Author: Al Carruth
+ *  Origin: git@github.com:alcarruth/frontend-p3-arcade-game.git
+ *
+ *  This file is part a project submitted by the author for the
+ *  Udacity Front End Web Developer Nanodegree, Project 3 Classic
+ *  Arcade Game clone.
+ */
+
+@import url(https://fonts.googleapis.com/css?family=Kalam);
+
 body {
     text-align: center;
+}
+#scoreboard {
+    font-family: 'Kalam', cursive;
+    font-size: 38pt;
 }

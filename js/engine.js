@@ -1,67 +1,230 @@
-/* Engine.js
- * This file provides the game loop functionality (update entities and render),
- * draws the initial game board on the screen, and then calls the update and
- * render methods on your player and enemy objects (defined in your app.js).
+/*
+ *  engine.js
  *
- * A game engine works by drawing the entire game screen over and over, kind of
- * like a flipbook you may have created as a kid. When your player moves across
- * the screen, it may look like just that image/character is moving or being
- * drawn but that is not the case. What's really happening is the entire "scene"
- * is being drawn over and over, presenting the illusion of animation.
+ *  Author: Al Carruth
+ *  Origin: git@github.com:alcarruth/frontend-p3-arcade-game.git
  *
- * This engine is available globally via the Engine variable and it also makes
- * the canvas' context (ctx) object globally available to make writing app.js
- * a little simpler to work with.
+ *  This file is part a project submitted by the author for the
+ *  Udacity Front End Web Developer Nanodegree, Project 3 Classic
+ *  Arcade Game clone.
  */
 
-var Engine = (function(global) {
-    /* Predefine the variables we'll be using within this scope,
-     * create the canvas element, grab the 2D context for that canvas
-     * set the canvas elements height/width and add it to the DOM.
-     */
-    var doc = global.document,
-        win = global.window,
-        canvas = doc.createElement('canvas'),
-        ctx = canvas.getContext('2d'),
-        lastTime;
+/*
+ *  Here we define the following:
+ *
+ *   - class Engine()
+ *   - window.engine which is an instance of Engine()
+ */
 
-    canvas.width = 505;
-    canvas.height = 606;
+/*
+ * from jshint.com:
+ *
+ *   Metrics
+ *
+ *    - There are 14 functions in this file.
+ *    - Function with the largest signature take 1 arguments, while
+ *      the median is 0.5.
+ *    - Largest function has 32 statements in it, while the median
+ *      is 1.5.
+ *    - The most complex function has a cyclomatic complexity value
+ *      of 3 while the median is 1.
+ */
+
+/*
+ * -----------------
+ *  class: Engine()
+ * -----------------
+ *
+ *  Engine() is a functional-style class definition.  It is intended
+ *  as a 'singleton' class, ie a one-off definition of a single
+ *  instance.  So Engine() is a constructor which, when called,
+ *  creates a closure containing a number of vars, and then returns an
+ *  object which exposes some of those vars as properties and methods
+ *  of the instance.
+ */
+var Engine = function() {
+
+    /*
+     *  -----------------
+     *  Engine properties
+     *  -----------------
+     */
+
+    /*  TODO: do 'doc' and 'win' save us much?  I'm not so sure.
+     *  They are only referenced a few times below.
+     */
+    var doc = document;
+    var win = window;
+
+    /*  TODO: find a better way to handle some of these global vars.
+     *  The entities need access to the dimensions (or do they?)
+     */
+    var numCols = 5;
+    var numRows = 6;
+    var colWidth = 101;
+    var rowHeight = 83;
+
+    /*  score and lives are manipulated by the update() function.
+     *  they are used for the scoreboard display.
+     */
+    var score = 0;
+    var lives = 10;
+
+    /*  score_board is used to display the player's score and
+     *  number of lives left. It is used in update()
+     */
+    var score_board = {
+        score: doc.getElementById("score"),
+        lives: doc.getElementById("lives")
+    };
+
+    /*  'canvas', 'ctx', and 'lastTime' are used to display the
+     *  game board.  'lastTime' is used in computing the
+     *  elapsed time.
+     */
+    var canvas = doc.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    var lastTime;
+
+    /*  The player and the enemies are initialized by the
+     *  functions setPlayer() and addEnemy().
+     */
+    var allEnemies = [];
+    var player = null;
+
+    /*  'rowImages' contains the images used in drawing the game
+     *  background.  It is laid out so that the first image is
+     *  used for the top row and the last image is for the bottom
+     *  row.
+     *
+     *  TODO: Is this the best way to do this?  It facilitates the
+     *  loop that draws the background in render(), which because of
+     *  the frequency with which render() is called is possibly
+     *  critical.
+     */
+    var rowImages = [
+        'images/water-block.png',   // Top row is water
+        'images/stone-block.png',   // Row 1 of 3 of stone
+        'images/stone-block.png',   // Row 2 of 3 of stone
+        'images/stone-block.png',   // Row 3 of 3 of stone
+        'images/grass-block.png',   // Row 1 of 2 of grass
+        'images/grass-block.png'    // Row 2 of 2 of grass
+    ];
+
+    var resources = win.Resources();
+
+    /*  Prefetch all of the images we know we're going to
+     *  need to draw our game level and set init() as the callback
+     *  method, so that when all of these images are properly loaded
+     *  our game will start.
+     *
+     *  TODO: 
+     *  The global var 'resources' is an instance of functional-style
+     *  class Resources()
+     */
+    resources.load([
+        'images/stone-block.png',
+        'images/water-block.png',
+        'images/grass-block.png',
+        'images/enemy-bug.png',
+        'images/char-boy.png'
+    ]);
+    resources.onReady(init);
+
+    /*  Setup the canvas for displaying the game.
+     *  
+     *  TODO: Consider refactoring to split off the game display from
+     *  this Engine code.  At least put statements like the following
+     *  into some cohesive function like init_display() or something.
+     */
+    canvas.width = numCols * colWidth;
+    canvas.height = numRows * rowHeight + 100;
     doc.body.appendChild(canvas);
 
-    /* This function serves as the kickoff point for the game loop itself
-     * and handles properly calling the update and render methods.
+    /* This listens for key presses and sends the keys to your
+     * Player.handleInput() method. You don't need to modify this.
+     *
+     *  TODO: this code used to be in app.js and seemed out of place
+     *  there.  I put it here (just below
+     *  'doc.body.appendChild(canvas)') because it seemed to fall into
+     *  the same category of establishing the connections between the
+     *  game data and the game view.  Hmmmm ...
+     */
+    doc.addEventListener('keyup', function(e) {
+        var allowedKeys = {
+            37: 'left',
+            38: 'up',
+            39: 'right',
+            40: 'down'
+        };
+        player.handleInput(allowedKeys[e.keyCode]);
+    });
+
+    /*
+     *  --------------
+     *  Engine methods 
+     *  --------------
+     */
+
+    /* setter and getter for the player
+     */
+    function setPlayer(p) {
+        player = p;
+    }
+    function getPlayer() {
+        return player;
+    }
+
+    /* setter and getter for the enemies
+     */
+    function addEnemy(e) {
+        allEnemies.push(e);
+    }
+    function getEnemies() {
+        return allEnemies;
+    }
+
+    /*  This function serves as the kickoff point for the game loop
+     *  itself and handles properly calling the update and render
+     *  methods.
+     *
+     *  TODO: I'm not sure about the name 'main'.  Maybe 'main_loop'
+     *  or 'run' (engines 'run', that's what they do !-) Using some
+     *  verb seems appropriate.
      */
     function main() {
-        /* Get our time delta information which is required if your game
-         * requires smooth animation. Because everyone's computer processes
-         * instructions at different speeds we need a constant value that
-         * would be the same for everyone (regardless of how fast their
-         * computer is) - hurray time!
-         */
-        var now = Date.now(),
-            dt = (now - lastTime) / 1000.0;
 
-        /* Call our update/render functions, pass along the time delta to
-         * our update function since it may be used for smooth animation.
-         */
+        var now = Date.now();
+        var dt = (now - lastTime) / 1000.0;
+
         update(dt);
         render();
 
-        /* Set our lastTime variable which is used to determine the time delta
-         * for the next time this function is called.
-         */
         lastTime = now;
 
-        /* Use the browser's requestAnimationFrame function to call this
-         * function again as soon as the browser is able to draw another frame.
+        /* Use the browser's requestAnimationFrame function to call
+         * this function again as soon as the browser is able to draw
+         * another frame.
          */
         win.requestAnimationFrame(main);
-    };
+    }
 
-    /* This function does some initial setup that should only occur once,
-     * particularly setting the lastTime variable that is required for the
-     * game loop.
+    /*  This function does some initial setup that should only occur
+     *  once, particularly setting the lastTime variable that is
+     *  required for the game loop.
+     *
+     *  TODO: First of all, since init() calls main(), it's really
+     *  more than initialization, it actually starts the game.  If it
+     *  didn't call main() then it might better be considered
+     *  initialization, but all it would be doing is setting the
+     *  'lastTime' variable since 'reset()' is currently a no-op.
+     *
+     *  TODO: Secondly, what are all the steps in getting the game
+     *  ready to run?  We load some javascript, initialize some data,
+     *  load the document, pre-fetch some images and eventually start
+     *  the game.  What exactly are the dependencies?  They seem to be
+     *  scattered about, making it difficult to determine.
+     *  
      */
     function init() {
         reset();
@@ -69,116 +232,104 @@ var Engine = (function(global) {
         main();
     }
 
-    /* This function is called by main (our game loop) and itself calls all
-     * of the functions which may need to update entity's data. Based on how
-     * you implement your collision detection (when two entities occupy the
-     * same space, for instance when your character should die), you may find
-     * the need to add an additional function call here. For now, we've left
-     * it commented out - you may or may not want to implement this
-     * functionality this way (you could just implement collision detection
-     * on the entities themselves within your app.js file).
+    /*  Update all entity positions, check for collisions and adjust
+     *  score_board accordingly.
      */
     function update(dt) {
-        updateEntities(dt);
-        // checkCollisions();
-    }
 
-    /* This is called by the update function  and loops through all of the
-     * objects within your allEnemies array as defined in app.js and calls
-     * their update() methods. It will then call the update function for your
-     * player object. These update methods should focus purely on updating
-     * the data/properties related to  the object. Do your drawing in your
-     * render methods.
-     */
-    function updateEntities(dt) {
+        // update enemy positions
         allEnemies.forEach(function(enemy) {
             enemy.update(dt);
         });
+
+        // update player position
         player.update();
+
+        // check for collisions
+        allEnemies.forEach(function(enemy) {
+            if (enemy.collision(player)) {
+                player.reset();
+                lives--;
+                score_board.lives.innerHTML = 'Lives: ' + lives;
+            }
+        });
+
+        // check for success
+        if (player.y < 0) {
+            score++;
+            score_board.score.innerHTML = 'Score: ' + score;
+            player.reset();
+        }
     }
 
-    /* This function initially draws the "game level", it will then call
-     * the renderEntities function. Remember, this function is called every
-     * game tick (or loop of the game engine) because that's how games work -
-     * they are flipbooks creating the illusion of animation but in reality
-     * they are just drawing the entire screen over and over.
+    /*  Render the game image.  render() is called each time through
+     *  the main loop.  First we render the background, then the
+     *  enemies and finally the player.
      */
     function render() {
-        /* This array holds the relative URL to the image used
-         * for that particular row of the game level.
-         */
-        var rowImages = [
-                'images/water-block.png',   // Top row is water
-                'images/stone-block.png',   // Row 1 of 3 of stone
-                'images/stone-block.png',   // Row 2 of 3 of stone
-                'images/stone-block.png',   // Row 3 of 3 of stone
-                'images/grass-block.png',   // Row 1 of 2 of grass
-                'images/grass-block.png'    // Row 2 of 2 of grass
-            ],
-            numRows = 6,
-            numCols = 5,
-            row, col;
 
-        /* Loop through the number of rows and columns we've defined above
-         * and, using the rowImages array, draw the correct image for that
-         * portion of the "grid"
-         */
+        var img, row, col;
+        
+        // render the background
         for (row = 0; row < numRows; row++) {
+
+            // There's no point in calling resources.get() each time
+            // through the loop below.  Once we know the row we set
+            // 'img' and refer to it instead.
+            img = resources.get(rowImages[row]);
+
             for (col = 0; col < numCols; col++) {
-                /* The drawImage function of the canvas' context element
-                 * requires 3 parameters: the image to draw, the x coordinate
-                 * to start drawing and the y coordinate to start drawing.
-                 * We're using our Resources helpers to refer to our images
-                 * so that we get the benefits of caching these images, since
-                 * we're using them over and over.
-                 */
-                ctx.drawImage(Resources.get(rowImages[row]), col * 101, row * 83);
+                ctx.drawImage(img, col * colWidth, row * rowHeight);
             }
         }
 
-
-        renderEntities();
-    }
-
-    /* This function is called by the render function and is called on each game
-     * tick. It's purpose is to then call the render functions you have defined
-     * on your enemy and player entities within app.js
-     */
-    function renderEntities() {
-        /* Loop through all of the objects within the allEnemies array and call
-         * the render function you have defined.
-         */
-        allEnemies.forEach(function(enemy) {
+        // render the enemies
+        allEnemies.forEach( function(enemy) {
             enemy.render();
         });
 
+        // render the player
         player.render();
     }
 
-    /* This function does nothing but it could have been a good place to
-     * handle game reset states - maybe a new game menu or a game over screen
-     * those sorts of things. It's only called once by the init() method.
+    /*  This function does nothing but it could have been a good place
+     *  to handle game reset states - maybe a new game menu or a game
+     *  over screen those sorts of things. It's only called once by
+     *  the init() method.
+     *
+     *  TODO: Well if it's only called once by the init() method, then
+     *  it hardly seems a good place to put 'Game Over' !-) But, some
+     *  sort of settings menu seems like a good idea.  And a 'Game
+     *  Over' screen, or at least message, is a good idea, but where
+     *  should that go?  Clearly it would have to be called from
+     *  update() which would check for lives == 0.  Similarly,
+     *  update() could check for score >= target or something and
+     *  displaying a 'You Win!!!' message or screen.
      */
     function reset() {
         // noop
     }
 
-    /* Go ahead and load all of the images we know we're going to need to
-     * draw our game level. Then set init as the callback method, so that when
-     * all of these images are properly loaded our game will start.
+    /*  Returning the following object makes Engine() a functional
+     *  style class definition, exposing links to private vars within
+     *  the closure created by 'engine =Engine(this)' call below.
      */
-    Resources.load([
-        'images/stone-block.png',
-        'images/water-block.png',
-        'images/grass-block.png',
-        'images/enemy-bug.png',
-        'images/char-boy.png'
-    ]);
-    Resources.onReady(init);
+    return {
 
-    /* Assign the canvas' context object to the global variable (the window
-     * object when run in a browser) so that developer's can use it more easily
-     * from within their app.js files.
-     */
-    global.ctx = ctx;
-})(this);
+        /* properties */
+        numCols: numCols,
+        numRows: numRows,
+        colWidth: colWidth,
+        rowHeight: rowHeight,
+        ctx: ctx,
+        resources: resources,
+
+        /* methods */
+        addEnemy: addEnemy,
+        setPlayer: setPlayer,
+        getPlayer: getPlayer,
+        getEnemies: getEnemies
+    };
+};
+
+window.engine = Engine(this);
