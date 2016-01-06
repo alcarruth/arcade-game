@@ -332,4 +332,4 @@ var Engine = function() {
     };
 };
 
-window.engine = Engine(this);
+window.engine = Engine();
