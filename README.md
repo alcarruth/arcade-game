@@ -6,7 +6,7 @@ Download the repository:
 > $ git clone git@github.com:alcarruth/arcade-game.git
 
 Start the arcade game app:
-> $ google-chrome frontend-p3-arcade-game/index.html
+> $ google-chrome arcade-game/index.html
 
 ## Playing the Game
 
