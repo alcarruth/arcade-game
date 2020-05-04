@@ -1,20 +1,13 @@
 
 class Entity
 
-  constructor: (engine, init_x, init_y, sprite) ->
-    @x = init_x
-    @y = init_y
-    @engine = engine
+  constructor: (engine, @init_x, @init_y, @sprite) ->
     @numCols = engine.numCols
     @numRows = engine.numRows
     @colWidth = engine.colWidth
     @rowHeight = engine.rowHeight
-    @ctx = engine.ctx
+    @context = engine.context
     @resources = engine.resources
-
-    @init_x = init_x
-    @init_y = init_y
-    @sprite = sprite
     @reset()
 
   reset: =>
@@ -23,7 +16,7 @@ class Entity
 
   render: =>
     img = @resources.get(@sprite)
-    @ctx.drawImage(img, @x, @y)
+    @context.drawImage(img, @x, @y)
 
 
 class Enemy extends Entity
@@ -40,16 +33,14 @@ class Enemy extends Entity
     # speed is 1 (min) .. 10 (max).
     @speed = speed
 
-  collision: =>
+  collision: (entity) =>
     x_min = Math.floor(@x/@colWidth) * @colWidth
     x_max = x_min + 2 * @colWidth
     y_min = Math.floor(@y/@rowHeight) * @rowHeight
     y_max = y_min + @rowHeight
     collision = 
-      entity.x >= x_min &&
-      entity.x <  x_max &&
-      entity.y >= y_min &&
-      entity.y <  y_max
+      entity.x >= x_min && entity.x <  x_max &&
+      entity.y >= y_min && entity.y <  y_max
     return collision
 
   update: (dt) =>
@@ -85,19 +76,21 @@ class Player extends Entity
     dt = dt
 
   handleInput: (direction) =>
+    console.log("direction: #{direction}")
     move = {
       left: @move_left
       right: @move_right
       up: @move_up
       down: @move_down
       }[direction]
-    move()
+    if move?
+      move()
 
   move_left: =>
     if (@x > 0)
       @x -= @colWidth
 
-  move_right:
+  move_right: =>
     if (@x < (@numCols-1) * @colWidth)
       @x += @colWidth
 
@@ -134,8 +127,8 @@ init = ->
 if document.readyState == 'complete'
   init()
 else
-  document.onreadystatechange( ->
+  document.onreadystatechange = ->
     if document.readyState == 'complete'
-      init())
+      init()
 
 
