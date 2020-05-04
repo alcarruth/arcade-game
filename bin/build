@@ -1,0 +1,17 @@
+#!/bin/bash
+
+rm -rf build/ dist/
+mkdir -p build/ dist/js/ dist/css/ dist/images/
+
+pushd src/coffee/ >/dev/null
+cat resources.coffee engine.coffee app.coffee > ../../build/arcade_game.coffee
+popd >/dev/null
+
+coffee -o dist/js/ -cM build/arcade_game.coffee
+
+cp src/css/*.css dist/css/
+cp src/images/*.png dist/images/
+cp src/index.html dist/
+
+
+

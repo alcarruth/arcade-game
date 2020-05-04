@@ -42,16 +42,6 @@ class Engine
     @document.addEventListener('on_keyup', @on_keyup)
 
 
-  @on_keyup: (e) =>
-    direction =  {
-      37: 'left'
-      38: 'up'
-      39: 'right'
-      40: 'down'
-      }[e.keyCode]
-    @player.handleInput(direction)
-
-
   ###
    Methods
   ###
@@ -75,12 +65,26 @@ class Engine
     @lastTime = Date.now()
     @main()
 
+  on_keyup: (e) =>
+    direction =  {
+      37: 'left'
+      38: 'up'
+      39: 'right'
+      40: 'down'
+      }[e.keyCode]
+    @player.handleInput(direction)
+
   update: (dt) =>
-    @enemies.forEach((enemy) -> enemy.update(dt))
+
+    # update enemies
+    for enemy in @enemies
+      enemy.update(dt)
+      
+    # update player
     @player.update()
 
     # check for collisions
-    @enemies.forEach((enemy) ->
+    for enemy in @enemies
       if (enemy.collision(@player))
         @player.reset()
         @lives--
@@ -92,7 +96,9 @@ class Engine
       @score_board.score.innerHTML = 'Score: ' + @score
       @player.reset()
 
+
   render: =>
+
     # render the background
     for row in [0...@numRows]
       img = resources.get(@rowImages[row])
@@ -104,6 +110,7 @@ class Engine
 
     # render the player
     @player.render()
+
 
   reset: ->  # noop
 

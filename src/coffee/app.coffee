@@ -1,7 +1,7 @@
 
 class Entity
 
-  constructor: engine, init_x, init_y, sprite) ->
+  constructor: (engine, init_x, init_y, sprite) ->
     @x = init_x
     @y = init_y
     @engine = engine
@@ -119,12 +119,14 @@ class Player extends Entity
 init = ->
 
   engine = new Engine()
-    ###  Create a new Player object ###
-    engine.setPlayer(new Player(engine, "images/char-boy.png"))
-    ###  Create several Enemy objects ###
-    engine.addEnemy(new Enemy(engine, 3, 8, 'images/enemy-bug.png'))
-    engine.addEnemy(new Enemy(engine, 4, 7, 'images/enemy-bug.png'))
-    engine.addEnemy(new Enemy(engine, 2, 5, 'images/enemy-bug.png'))
+  
+  ###  Create a new Player object ###
+  engine.setPlayer(new Player(engine, "images/char-boy.png"))
+
+  ###  Create several Enemy objects ###
+  engine.addEnemy(new Enemy(engine, 3, 8, 'images/enemy-bug.png'))
+  engine.addEnemy(new Enemy(engine, 4, 7, 'images/enemy-bug.png'))
+  engine.addEnemy(new Enemy(engine, 2, 5, 'images/enemy-bug.png'))
 
   window.app = engine
 
